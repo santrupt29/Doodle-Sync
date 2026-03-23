@@ -1,0 +1,13 @@
+spring:
+  data:
+    redis:
+      host: redis
+  datasource:
+    url: jdbc:postgresql://postgres:5432/scribble
+  kafka:
+    bootstrap-servers: kafka:9092
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://discovery-server:8761/eureka/

@@ -1,0 +1,87 @@
+server:
+  port: 8765
+
+spring:
+  application:
+    name: "api-gateway"
+  main:
+    web-application-type: REACTIVE
+  cloud:
+    gateway:
+      global cors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:3000"
+              - "http://localhost:3001"
+              - "http://localhost:5173"
+              - "http://localhost:5174"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+
+      routes:
+        - id: chat-service-route
+          uri: lb://chat-service
+          predicates:
+            - Path=/chat/**
+          filters:
+#            - StripPrefix=1
+#            - JwtValidation
+
+
+        - id: user-service-route
+          uri: lb://user-service
+          predicates:
+            - Path=/user/**
+          filters:
+#            - StripPrefix=1
+
+        - id: game-service-route
+          uri: lb://game-service
+          predicates:
+            - Path=/game/**
+          filters:
+#            - StripPrefix=1
+#            - JwtValidation
+
+        - id: drawing-service-route
+          uri: lb://drawing-service
+          predicates:
+            - Path=/draw/**
+          filters:
+#            - StripPrefix=1
+#            - JwtValidation
+
+        - id: score-service-route
+          uri: lb://score-service
+          predicates:
+            - Path=/score/**
+          filters:
+#            - StripPrefix=1
+#            - JwtValidation
+
+        - id: word-service-route
+          uri: lb://word-service
+          predicates:
+            - Path=/word/**
+          filters:
+#            - StripPrefix=1
+#            - JwtValidation
+
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,Prometheus

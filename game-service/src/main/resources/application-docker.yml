@@ -1,0 +1,11 @@
+spring:
+  data:
+    mongodb:
+      uri: mongodb://mongodb:27017/scribble   # ← docker service name
+  kafka:
+    bootstrap-servers: kafka:9092           # ← docker service name
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://discovery-server:8761/eureka/
