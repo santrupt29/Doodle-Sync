@@ -4,15 +4,17 @@ services:
     image: postgres:16-alpine
     container_name: scribble-postgres
     environment:
-      POSTGRES_DB: scribble
-      POSTGRES_USER: admin_user
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: rootpassword
+#      POSTGRES_DB: scribble
+#      POSTGRES_USER: admin_user
+#      POSTGRES_PASSWORD: password
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U scribble"]
+      test: ["CMD-SHELL", "pg_isready -U admin_user -d scribble"]
       interval: 10s
       timeout: 5s
       retries: 5

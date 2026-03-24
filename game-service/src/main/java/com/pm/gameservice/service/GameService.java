@@ -2,9 +2,13 @@ package com.pm.gameservice.service;
 
 import com.pm.gameservice.dto.CreateRoomRequest;
 import com.pm.gameservice.dto.CreateRoomResponse;
+import com.pm.gameservice.dto.JoinRoomRequest;
+import com.pm.gameservice.dto.JoinRoomResponse;
+import com.pm.gameservice.exception.GameException;
 import com.pm.gameservice.model.GameSession;
 import com.pm.gameservice.model.GameState;
 import com.pm.gameservice.repository.GameSessionRepository;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -90,5 +94,53 @@ public class GameService {
         }
         return sb.toString();
     }
+
+    public JoinRoomResponse joinRoom(@Valid String roomCode, JoinRoomRequest joinRoomRequest) {
+        GameSession gameSession = gameSessionRepository
+                .findByRoomCode(roomCode.toUpperCase())
+                .orElseThrow(() -> GameException.notFound("Room not found with RoomCode :"+ roomCode));
+
+        if(gameSession.getState() != GameState.WAITING) {
+            throw GameException.conflict("Room: "+roomCode+" is already in progress");
+        }
+
+        if (gameSession.getPlayers().size() >= gameSession.getMaxPlayers()) {
+            throw GameException.conflict("Room is full (" + gameSession.getMaxPlayers() + " players)");
+        }
+
+        boolean alreadyIn = gameSession.getPlayers().stream().anyMatch(p -> p.getUserId().equals(joinRoomRequest.getUserId()));
+        if (alreadyIn) {
+            throw GameException.conflict("User already in this room");
+        }
+
+        GameSession.Player newPlayer = GameSession.Player.builder()
+                .userId(joinRoomRequest.getUserId())
+                .username(joinRoomRequest.getUsername())
+                .score(0)
+                .isHost(false)
+                .isConnected(true)
+                .isDrawing(false)
+                .build();
+
+        gameSession.getPlayers().add(newPlayer);
+        GameSession saved = gameSessionRepository.save(gameSession);
+        log.info("Player {} joined room {}",
+                joinRoomRequest.getUsername(), roomCode);
+
+        return JoinRoomResponse.builder()
+                .sessionId(saved.getId())
+                .roomCode(saved.getRoomCode())
+                .state(saved.getState().name())
+                .players(saved.getPlayers())
+                .maxPlayers(saved.getMaxPlayers())
+                .totalRounds(saved.getTotalRounds())
+                .build();
+    }
+
+    // The state machine lives in memory — not in MongoDB.
+    // MongoDB stores the persistent game record.
+    // The in-memory ConcurrentHashMap is for fast state transitions during an active game.
+    // Both must stay in sync.
+
 
 }

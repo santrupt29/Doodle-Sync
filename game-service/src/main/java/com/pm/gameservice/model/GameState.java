@@ -3,7 +3,7 @@ package com.pm.gameservice.model;
 public enum GameState {
     WAITING,
     CHOOSING,
-    DRAWINGS,
-    RESULT,
+    DRAWING,
+    RESULTS,
     GAME_OVER
 }

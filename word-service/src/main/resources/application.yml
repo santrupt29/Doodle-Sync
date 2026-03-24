@@ -5,7 +5,7 @@ spring:
   application:
     name: word-service
   datasource:
-    url: jdbc:postgresql://localhost:5432/scribble
+    url: jdbc:postgresql://localhost:5434/scribble
     username: admin_user
     password: password
     driver-class-name: org.postgresql.Driver
