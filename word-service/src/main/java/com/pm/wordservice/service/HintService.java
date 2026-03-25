@@ -65,5 +65,7 @@ public class HintService {
         });
     }
 
+    @jakarta.annotation.PreDestroy
+    public void shutdown() { scheduler.shutdownNow(); }
 
 }

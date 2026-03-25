@@ -11,7 +11,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 public interface WordServiceClient {
 
     @GetMapping("/word")
-    String getWord(@RequestParam("difficulty") String difficulty);
+    String getWord(@RequestParam("difficulty") String difficulty,
+                   @RequestParam("roomCode") String roomCode,
+                   @RequestParam("drawTime") int drawTime);
 }
 
 

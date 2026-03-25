@@ -85,3 +85,13 @@ management:
     web:
       exposure:
         include: health,info,prometheus
+
+jwt:
+  secret: ${JWT_SECRET:dev-secret-key-change-in-production-256bit}
+
+gateway:
+  whitelist:
+    - /user/auth/register
+    - /user/auth/login
+    - /actuator/health
+    - /ws/**

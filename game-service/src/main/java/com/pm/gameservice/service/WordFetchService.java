@@ -26,9 +26,9 @@ public class WordFetchService {
     @CircuitBreaker(name = "word-service", fallbackMethod = "fallbackWord")
     @TimeLimiter(name = "word-service")
     @Retry(name = "word-service")
-    public CompletableFuture<String> fetchWord(String difficulty) {
+    public CompletableFuture<String> fetchWord(String difficulty, String roomCode, int drawTimeSeconds) {
         return CompletableFuture.supplyAsync(() -> {
-            String word = wordClient.getWord(difficulty);
+            String word = wordClient.getWord(difficulty, roomCode, drawTimeSeconds);
             log.info("Word fetched from word-service: {}", word);
             return word;
         });

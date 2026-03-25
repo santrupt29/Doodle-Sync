@@ -66,7 +66,7 @@ public class GameStateMachine {
 
         String difficulty = "MEDIUM";
 
-        wordFetchService.fetchWord(difficulty)
+        wordFetchService.fetchWord(difficulty, gameSession.getRoomCode(), gameSession.getDrawTimeSeconds())
                 .thenAccept(word -> {
                     log.info("Word received for room {}: {}", gameRoom.getRoomCode(), word);
                     wordChosen(gameRoom.getRoomCode(), word);
