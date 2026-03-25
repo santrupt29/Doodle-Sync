@@ -6,10 +6,10 @@ spring:
     name: game-service
   data:
     mongodb:
-      uri: mongodb://localhost:27017/scribble # ← localhost for IntelliJ
+      uri: mongodb://localhost:27017/scribble
       database: scribble
   kafka:
-    bootstrap-servers: localhost:9092             # ← localhost for IntelliJ
+    bootstrap-servers: localhost:9092
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -25,3 +25,37 @@ eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
+
+resilience4j:
+
+  circuitbreaker:
+    instances:
+      word-service:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10              # evaluate last 10 calls
+        failure-rate-threshold: 50           # open if ≥50% fail
+        wait-duration-in-open-state: 5s      # stay open 5s, then half-open
+        permitted-calls-in-half-open-state: 3
+        minimum-number-of-calls: 5           # need 5 calls before evaluating
+        register-health-indicator: true      # visible in /actuator/health
+
+  timelimiter:
+    instances:
+      word-service:
+        timeout-duration: 2s                 # call must complete within 2s
+        cancel-running-future: true
+
+  retry:
+    instances:
+      word-service:
+        max-attempts: 3                      # retry up to 3 times
+        wait-duration: 500ms                 # wait 500ms between retries
+        retry-exceptions:
+          - java.io.IOException
+          - feign.RetryableException
+
+# Retry → CircuitBreaker → TimeLimiter
+# So a call is retried up to 3 times,
+# each attempt is subject to the 2s timeout,
+# and failures count toward the circuit breaker's sliding window.
+# This is Resilience4j's default decorator order.

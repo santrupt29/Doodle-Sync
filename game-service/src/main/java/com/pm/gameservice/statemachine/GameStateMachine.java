@@ -4,6 +4,7 @@ import com.pm.gameservice.exception.GameException;
 import com.pm.gameservice.model.GameSession;
 import com.pm.gameservice.model.GameState;
 import com.pm.gameservice.repository.GameSessionRepository;
+import com.pm.gameservice.service.WordFetchService;
 import com.pm.gameservice.timer.RoundTimer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +21,7 @@ public class GameStateMachine {
     private final GameSessionRepository gameSessionRepository;
     private final RoundTimer roundTimer;
     private final KafkaTemplate<String, String> kafka;
+    private final WordFetchService wordFetchService;
 
     private final ConcurrentHashMap<String, GameRoom> rooms = new ConcurrentHashMap<>();
 
@@ -61,6 +63,31 @@ public class GameStateMachine {
         log.info("Round {} started in {}. Drawer: {}",
                 gameRoom.getCurrentRound(), gameRoom.getRoomCode(),
                 drawer.getUsername());
+
+        String difficulty = "MEDIUM";
+
+        wordFetchService.fetchWord(difficulty)
+                .thenAccept(word -> {
+                    log.info("Word received for room {}: {}", gameRoom.getRoomCode(), word);
+                    wordChosen(gameRoom.getRoomCode(), word);
+                })
+                .exceptionally(t -> {
+                    log.error("fetchWord future failed: {}", t.getMessage());
+                    wordChosen(gameRoom.getRoomCode(), "HOUSE");
+                    return null;
+                });
+
+        // The .thenAccept() callback runs on the CompletableFuture's thread,
+        // not the HTTP request thread. This means beginNextRound returns immediately,
+        // and the game transitions to DRAWING a moment later when the word arrives
+
+        // Actuator exposes circuit breaker state only if you add management.health.circuitbreakers.enabled:
+        // true and register-health-indicator: true (already in the yml from step 3) to game-service's application.yml.
+        // Also expose the health endpoint: management.endpoints.web.exposure.include: health,prometheus
+
+        // word-service went down, circuit opened after 5 failures, fallback fired,
+        // game continued uninterrupted. When word-service came back, the circuit moved to half-open,
+        // tested 3 calls, succeeded, and closed again."
     }
 
     public synchronized void wordChosen(
