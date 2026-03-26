@@ -8,22 +8,22 @@ spring:
     web-application-type: REACTIVE
   cloud:
     gateway:
-      global cors:
-        corsConfigurations:
-          '[/**]':
-            allowedOrigins:
-              - "http://localhost:3000"
-              - "http://localhost:3001"
-              - "http://localhost:5173"
-              - "http://localhost:5174"
-            allowedMethods:
-              - GET
-              - POST
-              - PUT
-              - DELETE
-              - OPTIONS
-            allowedHeaders: "*"
-            allowCredentials: true
+#      globalcors:
+#        cors-configurations:
+#          '[/**]':
+#            allowedOrigins:
+#              - "http://localhost:3000"
+#              - "http://localhost:3001"
+#              - "http://localhost:5173"
+#              - "http://localhost:5174"
+#            allowedMethods:
+#              - GET
+#              - POST
+#              - PUT
+#              - DELETE
+#              - OPTIONS
+#            allowedHeaders: "*"
+#            allowCredentials: true
 
       routes:
         - id: chat-service-route
@@ -73,6 +73,11 @@ spring:
           filters:
 #            - StripPrefix=1
 #            - JwtValidation
+
+        - id: drawing-service-ws
+          uri: lb://drawing-service
+          predicates:
+            - Path=/ws/**
 
 
 eureka:

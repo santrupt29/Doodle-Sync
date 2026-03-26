@@ -16,11 +16,16 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
     consumer:
       group-id: drawing-service
-      auto-offset-reset: earliest
+      auto-offset-reset: latest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "com.pm.*"
+
+# auto-offset-reset: latest for the broadcast consumer — not earliest.
+# If drawing-service restarts during a game, we don't want it re-broadcasting every stroke
+# from the beginning of the round to all connected clients. Strokes from before the restart
+# are already in Redis for replay — the broadcast only needs new strokes.
 
 eureka:
   client:

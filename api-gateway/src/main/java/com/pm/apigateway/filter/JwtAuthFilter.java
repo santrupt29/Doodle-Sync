@@ -31,6 +31,10 @@ public class JwtAuthFilter implements GlobalFilter {
             "/actuator/health",
             "/ws"
     );
+    // WebSocket upgrade requests cannot carry an Authorization header in the browser —
+    // it's a browser limitation. Whitelist /ws in the JWT filter.
+    // Authentication for WebSocket is handled differently —
+    // the client passes the token as a STOMP header after the connection is established
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange,
