@@ -8,9 +8,11 @@ import com.pm.gameservice.service.WordFetchService;
 import com.pm.gameservice.timer.RoundTimer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -22,6 +24,7 @@ public class GameStateMachine {
     private final RoundTimer roundTimer;
     private final KafkaTemplate<String, String> kafka;
     private final WordFetchService wordFetchService;
+    private final RedisTemplate<String, String> redisTemplate;
 
     private final ConcurrentHashMap<String, GameRoom> rooms = new ConcurrentHashMap<>();
 
@@ -95,6 +98,7 @@ public class GameStateMachine {
 
         GameRoom room = getGameRoom(roomCode);
         GameSession session = getGameSession(roomCode);
+        int drawTimeSeconds = session.getDrawTimeSeconds();
 
         if (room.getGameState() != GameState.CHOOSING)
             throw GameException.conflict("Not in CHOOSING state");
@@ -107,12 +111,13 @@ public class GameStateMachine {
 
         kafka.send("game-events", roomCode,
                 "DRAWING_STARTED:" + roomCode
-                        + ":" + word.length());  // send length, not the word
+                        + ":" + word.length());
 
-        // start the countdown timer
         roundTimer.start(roomCode,
                 session.getDrawTimeSeconds(),
                 () -> onRoundTimeout(roomCode));
+
+        redisTemplate.opsForValue().set("word:" + roomCode, word, Duration.ofSeconds(drawTimeSeconds + 30));
 
         log.info("Drawing started in {}. Word: {}",
                 roomCode, word);

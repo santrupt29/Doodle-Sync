@@ -34,5 +34,16 @@ public class DrawingController {
         return ResponseEntity.noContent().build();
     }
 
+    // Returns the current word for the drawer to see.
+    // The word is stored in Redis by game-service during wordChosen().
+    @GetMapping("/room/{roomCode}/word")
+    public ResponseEntity<String> getCurrentWord(
+            @PathVariable String roomCode) {
+        String word = redisTemplate.opsForValue().get("word:" + roomCode);
+        if (word == null) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(word);
+    }
 
 }

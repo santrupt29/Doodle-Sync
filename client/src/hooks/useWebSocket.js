@@ -1,15 +1,11 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { Client } from '@stomp/stompjs';
 
-// This hook manages the entire STOMP lifecycle — connect, subscribe, publish, reconnect. 
-// Everything WebSocket-related lives here. Components never touch the STOMP client directly.
 export function useWebSocket(roomCode, onStroke) {
-
   const clientRef       = useRef(null);
   const onStrokeRef     = useRef(onStroke);
   const subscriptionRef = useRef(null);
 
-  // keep onStroke ref current without re-running effect
   useEffect(() => {
     onStrokeRef.current = onStroke;
   }, [onStroke]);
@@ -18,15 +14,11 @@ export function useWebSocket(roomCode, onStroke) {
     if (!roomCode) return;
 
     const client = new Client({
-      brokerURL: `ws://localhost:5173/ws/websocket`,
-
-      // reconnect automatically after disconnect
+      brokerURL: `ws://localhost:8081/ws/websocket`,
       reconnectDelay: 3000,
 
       onConnect: () => {
         console.log('[WS] Connected to drawing-service');
-
-        // subscribe to this room's canvas topic
         subscriptionRef.current = client.subscribe(
           `/topic/room.${roomCode}.canvas`,
           (message) => {
@@ -52,7 +44,6 @@ export function useWebSocket(roomCode, onStroke) {
     client.activate();
     clientRef.current = client;
 
-    // cleanup on unmount or roomCode change
     return () => {
       subscriptionRef.current?.unsubscribe();
       client.deactivate();
@@ -60,7 +51,6 @@ export function useWebSocket(roomCode, onStroke) {
     };
   }, [roomCode]);
 
-  // publish a stroke — called by the canvas on every mouse move
   const sendStroke = useCallback((stroke) => {
     if (!clientRef.current?.connected) return;
     clientRef.current.publish({
@@ -71,7 +61,3 @@ export function useWebSocket(roomCode, onStroke) {
 
   return { sendStroke };
 }
-
-
-// Keep onStrokeRef pattern — do NOT put onStroke directly in the dependency array of the useEffect. 
-// Every render creates a new function reference, which would disconnect and reconnect the WebSocket on every render — causing an infinite loop.

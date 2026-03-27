@@ -34,6 +34,10 @@ spring:
 #            - StripPrefix=1
 #            - JwtValidation
 
+        - id: chat-service-ws
+          uri: lb://chat-service
+          predicates:
+            - Path=/ws-chat/**
 
         - id: user-service-route
           uri: lb://user-service

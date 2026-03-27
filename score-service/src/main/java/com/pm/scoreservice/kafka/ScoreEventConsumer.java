@@ -16,7 +16,7 @@ public class ScoreEventConsumer {
     private static final int BASE_SCORE = 100;
     private static final int DECAY_RATE = 1;
 
-    @KafkaListener(topics = "chat-service", groupId = "score-service")
+    @KafkaListener(topics = "chat-events", groupId = "score-service")
     public void onChatEvent(ConsumerRecord<String, String> record) {
         String value = record.value();
 

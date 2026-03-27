@@ -1,40 +1,60 @@
 export default function BrushToolbar({
   color, setColor,
   brushWidth, setBrushWidth,
-  isEraser, setIsEraser
+  isEraser, setIsEraser,
 }) {
   const colors = [
-    '#000000','#FF0000','#0000FF',
-    '#00AA00','#FFA500','#FF00FF',
-    '#00FFFF','#8B4513',
+    '#3b82f6', '#000000', '#22c55e',
+    '#ef4444', '#eab308', '#ec4899',
   ];
-  const sizes = [2, 5, 10, 20];
+  const sizes = [2, 5, 10, 20, 30];
 
   return (
-    <div style={{display:'flex',gap:'12px',
-                 alignItems:'center',padding:'8px',
-                 background:'#f5f5f5',borderRadius:'8px'}}>
-      {colors.map(c => (
-        <div key={c}
-          onClick={() => { setColor(c); setIsEraser(false); }}
-          style={{
-            width:'24px', height:'24px',
-            borderRadius:'50%', background:c,
-            border: color===c && !isEraser
-              ? '3px solid #333' : '2px solid #ccc',
-            cursor:'pointer'
-          }}
-        />
-      ))}
-      <select value={brushWidth}
-              onChange={e => setBrushWidth(Number(e.target.value))}>
-        {sizes.map(s =>
-          <option key={s} value={s}>{s}px</option>)}
-      </select>
-      <button onClick={() => setIsEraser(e => !e)}
-              style={{background: isEraser?'#ddd':'white'}}>
-        Eraser
+    <div className="flex items-center justify-center gap-4">
+      {/* Color circles */}
+      <div className="flex items-center gap-2">
+        {colors.map(c => (
+          <button
+            key={c}
+            onClick={() => { setColor(c); setIsEraser(false); }}
+            className="w-8 h-8 rounded-full transition-transform hover:scale-110 focus:outline-none"
+            style={{
+              background: c,
+              border: color === c && !isEraser
+                ? '3px solid #000'
+                : '2px solid #666',
+              transform: color === c && !isEraser ? 'scale(1.15)' : 'scale(1)',
+            }}
+            aria-label={`Color ${c}`}
+          />
+        ))}
+      </div>
+
+      {/* Pencil icon */}
+      <span className="text-xl">✏️</span>
+
+      {/* Eraser */}
+      <button
+        onClick={() => setIsEraser(e => !e)}
+        className={`
+          text-xl px-2 py-1 rounded transition-all
+          ${isEraser ? 'bg-yellow-200 border-2 border-black' : ''}
+        `}
+        title="Eraser"
+      >
+        🧹
       </button>
+
+      {/* Brush size dropdown */}
+      <select
+        value={brushWidth}
+        onChange={e => setBrushWidth(Number(e.target.value))}
+        className="px-3 py-1.5 bg-white border-2 border-black rounded-lg text-sm font-bold text-black focus:outline-none"
+      >
+        {sizes.map(s => (
+          <option key={s} value={s}>{s}px</option>
+        ))}
+      </select>
     </div>
   );
 }

@@ -1,17 +1,18 @@
 package com.pm.chatservice.dto;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.RequiredArgsConstructor;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class GuessMessage {
-    private String playerId;
+@Builder
+public class ChatMessage {
+    private String type;         // CHAT, CORRECT, WRONG, CLOSE, HINT, SYSTEM
     private String username;
-    private String guess;
+    private String message;
+    private String playerId;
     private long timestamp;
 }
-
