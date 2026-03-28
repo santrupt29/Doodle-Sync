@@ -29,7 +29,7 @@ ENV JAVA_OPTS="-XX:+UseContainerSupport \
                -XX:+ExitOnOutOfMemoryError"
 
 # 7. Expose the port (Change this to match your specific microservice port)
-EXPOSE 8080
+EXPOSE 8765
 
 # 8. Start the application
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

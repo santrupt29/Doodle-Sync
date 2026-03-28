@@ -59,3 +59,16 @@ resilience4j:
 # each attempt is subject to the 2s timeout,
 # and failures count toward the circuit breaker's sliding window.
 # This is Resilience4j's default decorator order.
+
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always   # shows DB, Redis, Kafka status in /health
+  health:
+    circuitbreakers:
+      enabled: true           # shows Resilience4j state in /health

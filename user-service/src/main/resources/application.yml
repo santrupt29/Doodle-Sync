@@ -5,7 +5,7 @@ spring:
   application:
     name: user-service
   datasource:
-    url: jdbc:postgresql://localhost:5434/scribble
+    url: jdbc:postgresql://localhost:5434/scribble_users
     username: admin_user
     password: password
     driver-class-name: org.postgresql.Driver
@@ -31,3 +31,17 @@ eureka:
 jwt:
   secret: ${JWT_SECRET:dev-secret-key-change-in-production-256bit}
   expiration-ms: 86400000
+
+
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always   # shows DB, Redis, Kafka status in /health
+  health:
+    circuitbreakers:
+      enabled: true           # shows Resilience4j state in /health

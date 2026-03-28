@@ -1,0 +1,7 @@
+target/
+*.log
+*.md
+.git
+.gitignore
+**/.DS_Store
+**/node_modules

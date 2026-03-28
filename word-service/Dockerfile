@@ -1,26 +1,35 @@
-# STAGE 1: Build the application
-FROM maven:3.9.9-eclipse-temurin-21 AS builder
-
+# ── STAGE 1: Build ───────────────────────────────────────────
+FROM maven:3.9-eclipse-temurin-21 AS builder
 WORKDIR /app
 
-# Cache dependencies to speed up future builds
+# 1. Copy pom.xml first to cache dependencies (Speeds up future builds)
 COPY pom.xml .
-RUN mvn dependency:go-offline -B
+RUN mvn dependency:go-offline -B --no-transfer-progress
 
-# Copy source code and build
+# 2. Copy source code
 COPY src ./src
-RUN mvn clean package -Dos.detected.classifier=linux-aarch_64 -DskipTests
 
-# STAGE 2: Run the application
+# 3. Build the JAR (Includes the Apple Silicon ARM fix and keeps logs clean)
+RUN mvn clean package -DskipTests -Dos.detected.classifier=linux-aarch_64 --no-transfer-progress
+
+
+# ── STAGE 2: Run ─────────────────────────────────────────────
 FROM eclipse-temurin:21-jre-alpine AS runner
-
 WORKDIR /app
 
-# Copy the built jar from the builder stage using a wildcard
-COPY --from=builder /app/target/word-service-0.0.1-SNAPSHOT.jar app.jar
+# 4. Add curl for Docker/Kubernetes health checks
+RUN apk add --no-cache curl
 
-# Expose the correct port for this specific microservice (Update per service)
+# 5. Copy the built JAR using a wildcard (Immune to version changes!)
+COPY --from=builder /app/target/*.jar app.jar
+
+# 6. Set production-ready JVM memory limits to prevent silent crashes
+ENV JAVA_OPTS="-XX:+UseContainerSupport \
+               -XX:MaxRAMPercentage=75.0 \
+               -XX:+ExitOnOutOfMemoryError"
+
+# 7. Expose the port (Change this to match your specific microservice port)
 EXPOSE 8085
 
-# Run the jar
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# 8. Start the application
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
