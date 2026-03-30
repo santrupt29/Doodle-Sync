@@ -53,3 +53,17 @@ management:
   health:
     circuitbreakers:
       enabled: true           # shows Resilience4j state in /health
+
+resilience4j:
+  retry:
+    instances:
+      kafka-consumer:
+        max-attempts: 3
+        wait-duration: 500ms
+        retry-exceptions:
+          - org.springframework.dao.TransientDataAccessException
+          - org.springframework.data.redis.RedisConnectionFailureException
+          - java.io.IOException
+
+
+#  Add @Retry to Kafka consumer methods in score-service and chat-service. These are the two services where a failed consume — due to a transient Redis write error or DB hiccup — would silently drop a score or a guess. Retry catches that.

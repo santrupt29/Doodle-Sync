@@ -1,5 +1,6 @@
 package com.pm.scoreservice.kafka;
 
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -17,6 +18,8 @@ public class ScoreEventConsumer {
     private static final int DECAY_RATE = 1;
 
     @KafkaListener(topics = "chat-events", groupId = "score-service")
+    @Retry(name = "kafka-consumer",
+            fallbackMethod = "onScoreConsumeFailed")
     public void onChatEvent(ConsumerRecord<String, String> record) {
         String value = record.value();
 
@@ -49,6 +52,14 @@ public class ScoreEventConsumer {
             redisTemplate.expire("scores:"+roomCode, java.time.Duration.ofHours(1));
             log.info("Scores TTL set for room {}", roomCode);
         }
+    }
+
+    public void onScoreConsumeFailed(
+            ConsumerRecord<String, String> record,
+            Throwable t) {
+        log.error("Score consumer failed after 3 retries"
+                        + " for room {} — score lost. Cause: {}",
+                record.key(), t.getMessage());
     }
 
 }

@@ -39,3 +39,14 @@ management:
   health:
     circuitbreakers:
       enabled: true           # shows Resilience4j state in /health
+
+resilience4j:
+  retry:
+    instances:
+      kafka-consumer:
+        max-attempts: 3
+        wait-duration: 500ms
+        retry-exceptions:
+          - org.springframework.dao.TransientDataAccessException
+          - org.springframework.data.redis.RedisConnectionFailureException
+          - java.io.IOException

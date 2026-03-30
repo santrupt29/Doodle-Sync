@@ -3,6 +3,7 @@ package com.pm.chatservice.handler;
 import com.pm.chatservice.dto.ChatMessage;
 import com.pm.chatservice.dto.GuessMessage;
 import com.pm.chatservice.service.GuessValidator;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -50,8 +51,7 @@ public class ChatMessageHandler {
 
         switch (result) {
             case CORRECT -> {
-                redisTemplate.opsForValue().set(alreadyKey, "1",
-                        java.time.Duration.ofMinutes(5));
+                markPlayerGuessed(alreadyKey);
 
                 broadcast(chatTopic, "CORRECT",
                         guessMessage.getUsername(),
@@ -94,4 +94,13 @@ public class ChatMessageHandler {
                 .timestamp(System.currentTimeMillis())
                 .build());
     }
+
+    @Retry(name = "kafka-consumer")
+    private void markPlayerGuessed(String key) {
+        redisTemplate.opsForValue().set(key, "1",
+                java.time.Duration.ofMinutes(5));
+    }
 }
+
+
+//These are the two services (chat and score) where a failed consume — due to a transient Redis write error or DB hiccup — would silently drop a score or a guess. Retry catches that.

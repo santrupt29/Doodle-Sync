@@ -83,12 +83,22 @@ services:
 
   api-gateway:
     build: ./api-gateway
+    container_name: scribble-gateway
     ports: ["8765:8765"]
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-key-change-in-production-256bit}
     depends_on:
       discovery-server:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD","curl","-f","http://localhost:8765/actuator/health" ]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 30s
 
   game-service:
     build: ./game-service
@@ -101,19 +111,32 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD","curl","-f","http://localhost:8082/actuator/health" ]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 40s
 
   user-service:
     build: ./user-service
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      DB_PASSWORD: ${DB_PASSWORD}
-      JWT_SECRET: ${JWT_SECRET}
+      DB_PASSWORD: ${DB_PASSWORD:-rootpassword}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-key-change-in-production-256bit}
     depends_on:
       discovery-server:
         condition: service_healthy
       postgres:
         condition: service_healthy
-
+    healthcheck:
+      test: [ "CMD","curl","-f","http://localhost:8084/actuator/health" ]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 40s
   drawing-service:
     build: ./drawing-service
     environment:
@@ -137,6 +160,12 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+    healthcheck:
+      test: [ "CMD","curl","-f","http://localhost:8080/actuator/health" ]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 40s
 
   word-service:
     build: ./word-service
@@ -149,6 +178,12 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+    healthcheck:
+      test: [ "CMD","curl","-f","http://localhost:8085/actuator/health" ]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 40s
 
   score-service:
     build: ./score-service
@@ -163,9 +198,20 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+    healthcheck:
+      test: [ "CMD","curl","-f","http://localhost:8083/actuator/health" ]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 40s
+
 
 volumes:
   postgres_data:
   mongo_data:
   redis_data:
   kafka_data:
+
+
+#start_period: 30s on Spring services tells Docker not to count failed healthchecks during the JVM startup window. Spring Boot takes 15–25s to fully start inside a container. Without start_period, the healthcheck fires during startup, fails, retries exhaust, and Docker marks the container as unhealthy before it ever had a chance.
+#The startup order is enforced by depends_on: condition: service_healthy chains — not by restart policies. Docker Compose will not start api-gateway until discovery-server is healthy. It will not start any service until both discovery-server AND its required infra are healthy.

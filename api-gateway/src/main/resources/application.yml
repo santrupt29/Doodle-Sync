@@ -8,23 +8,15 @@ spring:
     web-application-type: REACTIVE
   cloud:
     gateway:
-#      globalcors:
-#        cors-configurations:
-#          '[/**]':
-#            allowedOrigins:
-#              - "http://localhost:3000"
-#              - "http://localhost:3001"
-#              - "http://localhost:5173"
-#              - "http://localhost:5174"
-#            allowedMethods:
-#              - GET
-#              - POST
-#              - PUT
-#              - DELETE
-#              - OPTIONS
-#            allowedHeaders: "*"
-#            allowCredentials: true
-
+      default-filters:
+        - name: RequestRateLimiter
+          args:
+            redis-rate-limiter:
+              replenish-rate: 100
+              burst-capacity: 200
+              requested-tokens: 1
+            key-resolver: "#{@ipKeyResolver}"
+#  For a multiplayer game with 8 players sending ~10 strokes/sec each, that's 80 req/sec peak
       routes:
         - id: chat-service-route
           uri: lb://chat-service
@@ -44,7 +36,7 @@ spring:
           predicates:
             - Path=/user/**
           filters:
-#            - StripPrefix=1
+            - RemoveRequestHeader=X-Request-RateLimit
 
         - id: game-service-route
           uri: lb://game-service

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { Client } from '@stomp/stompjs';
+const [status, setStatus] = useState('connecting');
 
 export function useWebSocket(roomCode, onStroke) {
   const clientRef       = useRef(null);
@@ -33,22 +34,19 @@ export function useWebSocket(roomCode, onStroke) {
       },
 
       onDisconnect: () => {
-        console.log('[WS] Disconnected');
-      },
+        reconnectCount++;
+                setStatus(reconnectCount >= 3
+                  ? 'disconnected' : 'reconnecting');
+                console.warn(`[WS] Disconnected (attempt ${reconnectCount})`);
+              },
 
-      onStompError: (frame) => {
-        console.error('[WS] STOMP error', frame);
-      },
+              onStompError: () => setStatus('reconnecting'),
     });
 
     client.activate();
     clientRef.current = client;
+    return () => client.deactivate();
 
-    return () => {
-      subscriptionRef.current?.unsubscribe();
-      client.deactivate();
-      console.log('[WS] Cleaned up');
-    };
   }, [roomCode]);
 
   const sendStroke = useCallback((stroke) => {
@@ -59,5 +57,5 @@ export function useWebSocket(roomCode, onStroke) {
     });
   }, [roomCode]);
 
-  return { sendStroke };
+  return { sendStroke, status };
 }
