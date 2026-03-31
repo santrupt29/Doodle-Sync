@@ -51,17 +51,28 @@ services:
     container_name: scribble-kafka
     ports:
       - "9092:9092"
+    volumes:
+      - kafka_data:/tmp/kraft-combined-logs
+    healthcheck:
+      # Use a standard topic list command to verify the broker is alive and answering
+      test: [ "CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     environment:
       # --- KRaft Configuration ---
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
-      CLUSTER_ID: 'scribble-cluster-12345' # Required by Apache to format storage
+      # FIX 1: Point to the container name, not localhost
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@scribble-kafka:9093
+      # FIX 2: Must be a valid 22-character Base64 UUID
+      CLUSTER_ID: '4L6g3nShT-eMCtK--X86sw'
 
       # --- Network & Listeners ---
-      KAFKA_LISTENERS: INTERNAL://:29092,CONTROLLER://:9093,EXTERNAL://:9092
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
+      # FIX 3: Bind explicitly to 0.0.0.0 to avoid IPv6 mapping issues in Docker
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093,EXTERNAL://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://scribble-kafka:29092,EXTERNAL://localhost:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
 
@@ -87,9 +98,12 @@ services:
     ports: ["8765:8765"]
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATA_REDIS_HOST: scribble-redis
       JWT_SECRET: ${JWT_SECRET:-dev-secret-key-change-in-production-256bit}
     depends_on:
       discovery-server:
+        condition: service_healthy
+      zipkin:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -104,10 +118,14 @@ services:
     build: ./game-service
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATA_REDIS_HOST: scribble-redis
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: scribble-kafka:29092
     depends_on:
       discovery-server:
         condition: service_healthy
       mongodb:
+        condition: service_healthy
+      zipkin:
         condition: service_healthy
       kafka:
         condition: service_healthy
@@ -122,12 +140,15 @@ services:
 
   user-service:
     build: ./user-service
+    ports: ["8084:8084"]
     environment:
       SPRING_PROFILES_ACTIVE: docker
       DB_PASSWORD: ${DB_PASSWORD:-rootpassword}
       JWT_SECRET: ${JWT_SECRET:-dev-secret-key-change-in-production-256bit}
     depends_on:
       discovery-server:
+        condition: service_healthy
+      zipkin:
         condition: service_healthy
       postgres:
         condition: service_healthy
@@ -139,10 +160,15 @@ services:
       start_period: 40s
   drawing-service:
     build: ./drawing-service
+    ports: ["8081:8081"]
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: scribble-kafka:29092
+      SPRING_DATA_REDIS_HOST: scribble-redis
     depends_on:
       discovery-server:
+        condition: service_healthy
+      zipkin:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -153,8 +179,12 @@ services:
     build: ./chat-service
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: scribble-kafka:29092
+      SPRING_DATA_REDIS_HOST: scribble-redis
     depends_on:
       discovery-server:
+        condition: service_healthy
+      zipkin:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -171,8 +201,11 @@ services:
     build: ./word-service
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: scribble-kafka:29092
     depends_on:
       discovery-server:
+        condition: service_healthy
+      zipkin:
         condition: service_healthy
       postgres:
         condition: service_healthy
@@ -189,8 +222,12 @@ services:
     build: ./score-service
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: scribble-kafka:29092
+      SPRING_DATA_REDIS_HOST: scribble-redis
     depends_on:
       discovery-server:
+        condition: service_healthy
+      zipkin:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -205,13 +242,56 @@ services:
       retries: 8
       start_period: 40s
 
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: scribble-zipkin
+    ports: [ "9411:9411" ]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9411/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: scribble-prometheus
+    ports: [ "9090:9090" ]
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=7d'
+    depends_on:
+      - game-service
+      - drawing-service
+      - chat-service
+      - score-service
+      - word-service
+      - user-service
+    healthcheck:
+      test: [ "CMD","wget","-q","--spider",
+              "http://localhost:9090/-/healthy" ]
+      interval: 15s
+      retries: 3
+  grafana:
+    image: grafana/grafana:latest
+    container_name: scribble-grafana
+    ports: [ "3001:3000" ]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: scribble
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
 
 volumes:
   postgres_data:
   mongo_data:
   redis_data:
   kafka_data:
-
+  grafana_data:
 
 #start_period: 30s on Spring services tells Docker not to count failed healthchecks during the JVM startup window. Spring Boot takes 15–25s to fully start inside a container. Without start_period, the healthcheck fires during startup, fails, retries exhaust, and Docker marks the container as unhealthy before it ever had a chance.
 #The startup order is enforced by depends_on: condition: service_healthy chains — not by restart policies. Docker Compose will not start api-gateway until discovery-server is healthy. It will not start any service until both discovery-server AND its required infra are healthy.

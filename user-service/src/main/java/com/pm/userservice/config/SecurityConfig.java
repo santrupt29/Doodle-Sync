@@ -28,8 +28,8 @@ public class SecurityConfig {
                         SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                "/user/auth/**",
-                                "/actuator/health").permitAll()
+                                "/user/auth/**", "/user/auth/login", "/user/auth/register",
+                                "/actuator/health", "/auth/**").permitAll()
                         .anyRequest().authenticated());
         return httpSecurity.build();
     }

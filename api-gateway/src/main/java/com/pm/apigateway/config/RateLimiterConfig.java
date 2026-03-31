@@ -11,12 +11,13 @@ public class RateLimiterConfig {
     // Each IP gets its own token bucket
     @Bean
     public KeyResolver ipKeyResolver() {
-        return exchange -> Mono.just(
-                exchange.getRequest()
-                        .getRemoteAddress()
-                        .getAddress()
-                        .getHostAddress()
-        );
+        return exchange -> {
+            var remoteAddress = exchange.getRequest().getRemoteAddress();
+            if (remoteAddress != null) {
+                return Mono.just(remoteAddress.getAddress().getHostAddress());
+            }
+            return Mono.just("unknown");
+        };
     }
 }
 

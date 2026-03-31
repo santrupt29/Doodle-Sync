@@ -1,0 +1,39 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'api-gateway'
+    static_configs:
+      - targets: ['api-gateway:8765']
+    metrics_path: '/actuator/prometheus'
+
+  - job_name: 'game-service'
+    static_configs:
+      - targets: ['game-service:8082']
+    metrics_path: '/actuator/prometheus'
+
+  - job_name: 'drawing-service'
+    static_configs:
+      - targets: ['drawing-service:8081']
+    metrics_path: '/actuator/prometheus'
+
+  - job_name: 'chat-service'
+    static_configs:
+      - targets: ['chat-service:8080']
+    metrics_path: '/actuator/prometheus'
+
+  - job_name: 'word-service'
+    static_configs:
+      - targets: ['word-service:8085']
+    metrics_path: '/actuator/prometheus'
+
+  - job_name: 'user-service'
+    static_configs:
+      - targets: ['user-service:8084']
+    metrics_path: '/actuator/prometheus'
+
+  - job_name: 'score-service'
+    static_configs:
+      - targets: ['score-service:8083']
+    metrics_path: '/actuator/prometheus'

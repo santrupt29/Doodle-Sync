@@ -2,22 +2,9 @@ import { useEffect, useCallback, useRef } from 'react';
 import { useCanvas }       from '../hooks/useCanvas';
 import { useWebSocket }    from '../hooks/useWebSocket';
 import { useRemoteStrokes } from '../hooks/useRemoteStrokes';
-const { sendStroke, status } = useWebSocket(roomCode, enqueue);
 
 import api from '../api/gameApi';
 
-{status !== 'connected' && (
-  <div style={{
-    padding: '6px 12px',
-    background: status === 'reconnecting' ? '#fef3c7' : '#fee2e2',
-    color:      status === 'reconnecting' ? '#92400e' : '#991b1b',
-    borderRadius: '6px', fontSize: '12px', marginBottom: '6px'
-  }}>
-    {status === 'reconnecting'
-      ? 'Drawing server reconnecting... strokes paused'
-      : 'Drawing server unreachable. Please refresh.'}
-  </div>
-)}
 
 export default function DrawingCanvas({
   roomCode,
@@ -38,7 +25,21 @@ export default function DrawingCanvas({
   } = useCanvas();
 
   const { enqueue } = useRemoteStrokes(drawStroke, playerId);
-  const { sendStroke } = useWebSocket(roomCode, enqueue);
+  const { sendStroke, status } = useWebSocket(roomCode, enqueue);
+  
+  {status !== 'connected' && (
+  <div style={{
+    padding: '6px 12px',
+    background: status === 'reconnecting' ? '#fef3c7' : '#fee2e2',
+    color:      status === 'reconnecting' ? '#92400e' : '#991b1b',
+    borderRadius: '6px', fontSize: '12px', marginBottom: '6px'
+  }}>
+    {status === 'reconnecting'
+      ? 'Drawing server reconnecting... strokes paused'
+      : 'Drawing server unreachable. Please refresh.'}
+  </div>
+)}
+  
 
   // Track previous round to detect round changes
   const prevRoundRef = useRef(currentRound);

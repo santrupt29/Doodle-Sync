@@ -1,11 +1,13 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { Client } from '@stomp/stompjs';
-const [status, setStatus] = useState('connecting');
+import { useState } from 'react';
 
 export function useWebSocket(roomCode, onStroke) {
   const clientRef       = useRef(null);
   const onStrokeRef     = useRef(onStroke);
   const subscriptionRef = useRef(null);
+const [status, setStatus] = useState('connecting');
+
 
   useEffect(() => {
     onStrokeRef.current = onStroke;

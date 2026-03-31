@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://postgres:5432/scribble
+    url: jdbc:postgresql://postgres:5432/scribble_words
   kafka:
     bootstrap-servers: kafka:9092
 

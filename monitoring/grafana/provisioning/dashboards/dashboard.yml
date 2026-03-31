@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: scribble
+    folder: Scribble
+    type: file
+    options:
+      path: /etc/grafana/provisioning/dashboards
