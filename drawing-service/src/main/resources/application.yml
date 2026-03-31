@@ -21,8 +21,7 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "com.pm.*"
-  zipkin:
-    base-url: http://localhost:9411
+
 
 # auto-offset-reset: latest for the broadcast consumer — not earliest.
 # If drawing-service restarts during a game, we don't want it re-broadcasting every stroke
@@ -46,6 +45,17 @@ management:
   health:
     circuitbreakers:
       enabled: true           # shows Resilience4j state in /health
+  zipkin:
+    tracing:
+      endpoint: http://localhost:9411/api/v2/spans
   tracing:
     sampling:
       probability: 1.0
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      minimum-expected-value:
+        http.server.requests: 10ms
+      maximum-expected-value:
+        http.server.requests: 10s

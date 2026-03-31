@@ -21,8 +21,7 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
-  zipkin:
-    base-url: http://localhost:9411
+
 
 
 eureka:
@@ -47,6 +46,17 @@ management:
   health:
     circuitbreakers:
       enabled: true           # shows Resilience4j state in /health
+  zipkin:
+    tracing:
+      endpoint: http://localhost:9411/api/v2/spans
   tracing:
     sampling:
       probability: 1.0
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      minimum-expected-value:
+        http.server.requests: 10ms
+      maximum-expected-value:
+        http.server.requests: 10s

@@ -5,6 +5,11 @@ spring:
   kafka:
     bootstrap-servers: kafka:9092           # ← docker service name
 
+management:
+  zipkin:
+    tracing:
+      endpoint: http://scribble-zipkin:9411/api/v2/spans
+
 eureka:
   client:
     service-url:

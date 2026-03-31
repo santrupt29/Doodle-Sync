@@ -29,7 +29,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/user/auth/**", "/user/auth/login", "/user/auth/register",
-                                "/actuator/health", "/auth/**").permitAll()
+                                "/actuator/health", "/auth/**", "/actuator/prometheus").permitAll()
                         .anyRequest().authenticated());
         return httpSecurity.build();
     }
