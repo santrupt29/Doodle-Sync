@@ -4,21 +4,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pm.drawingservice.dto.StrokeEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
 @Controller
 @Slf4j
 @RequiredArgsConstructor
 public class DrawingMessageHandler {
-    private final RedisTemplate<String, String> redisTemplate;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final SimpMessagingTemplate broker;
+    private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
 
     // Client sends stroke to: /app/room.{roomCode}.stroke
@@ -37,8 +33,8 @@ public class DrawingMessageHandler {
             String redisKey = "canvas:" + roomCode;
             redisTemplate.opsForList().rightPush(redisKey, json);
 
-            // publish to Kafka for fan-out
-            kafkaTemplate.send("draw-events", roomCode, json);
+            // publish to Redis Pub/Sub for fan-out broadcast
+            redisTemplate.convertAndSend("draw:" + roomCode, json);
 
             log.debug("Stroke saved — room: {} player: {} seq: {}",
                     roomCode, strokeEvent.getPlayerId(),

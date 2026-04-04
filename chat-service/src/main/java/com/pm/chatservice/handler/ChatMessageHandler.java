@@ -69,11 +69,24 @@ public class ChatMessageHandler {
                 log.info("Correct guess by {} in room {}",
                         guessMessage.getUsername(), roomCode);
             }
-            case CLOSE ->
-                    broadcast(chatTopic, "CLOSE",
+            case CLOSE -> {
+                    // broadcast the guess as a regular chat message to everyone
+                    broadcast(chatTopic, "CHAT",
                             guessMessage.getUsername(),
-                            guessMessage.getGuess() + " — so close!",
+                            guessMessage.getGuess(),
                             guessMessage.getPlayerId());
+
+                    // send "so close!" hint privately to the guesser only
+                    String privateTopic = "/topic/room." + roomCode
+                            + ".hint." + guessMessage.getPlayerId();
+                    broker.convertAndSend(privateTopic, ChatMessage.builder()
+                            .type("CLOSE")
+                            .username("System")
+                            .message(guessMessage.getGuess() + " — so close!")
+                            .playerId(guessMessage.getPlayerId())
+                            .timestamp(System.currentTimeMillis())
+                            .build());
+            }
 
             case WRONG ->
                     broadcast(chatTopic, "CHAT",

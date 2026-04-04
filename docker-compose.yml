@@ -145,12 +145,15 @@ services:
       SPRING_PROFILES_ACTIVE: docker
       DB_PASSWORD: ${DB_PASSWORD:-rootpassword}
       JWT_SECRET: ${JWT_SECRET:-dev-secret-key-change-in-production-256bit}
+      SPRING_DATA_REDIS_HOST: scribble-redis
     depends_on:
       discovery-server:
         condition: service_healthy
       zipkin:
         condition: service_healthy
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: [ "CMD","curl","-f","http://localhost:8084/actuator/health" ]

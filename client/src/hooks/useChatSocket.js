@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { Client } from '@stomp/stompjs';
+import { fetchWsTicket } from '../api/gameApi';
 
 export function useChatSocket(roomCode, playerId) {
   const [messages, setMessages] = useState([]);
@@ -11,11 +12,24 @@ export function useChatSocket(roomCode, playerId) {
     if (!roomCode) return;
 
     const client = new Client({
+      // placeholder — overwritten by beforeConnect
       brokerURL: `ws://localhost:8080/ws-chat/websocket`,
       reconnectDelay: 3000,
 
+      // fires before EVERY connect attempt (initial + reconnects)
+      beforeConnect: async () => {
+        try {
+          const ticket = await fetchWsTicket();
+          client.brokerURL = `ws://localhost:8080/ws-chat/websocket?ticket=${ticket}`;
+        } catch (e) {
+          console.error('[Chat WS] Failed to fetch ticket:', e);
+          setConnected(false);
+          client.deactivate();
+        }
+      },
+
       onConnect: () => {
-        console.log('[Chat WS] Connected to chat-service');
+        console.log('[Chat WS] Connected to chat-service (authenticated)');
         setConnected(true);
 
         client.subscribe(
@@ -26,7 +40,6 @@ export function useChatSocket(roomCode, playerId) {
               console.log('[Chat WS] Received:', data.type, data.message);
 
               if (data.type === 'HINT') {
-                // data.message format: "Hint:_A____" or "Hint: _ A _ _ _ _"
                 setHints(prev => [...prev, data.message]);
               } else {
                 setMessages(prev => [...prev, data]);
@@ -36,6 +49,22 @@ export function useChatSocket(roomCode, playerId) {
             }
           }
         );
+
+        // subscribe to private "so close!" hints (only this player receives them)
+        if (playerId) {
+          client.subscribe(
+            `/topic/room.${roomCode}.hint.${playerId}`,
+            (msg) => {
+              try {
+                const data = JSON.parse(msg.body);
+                console.log('[Chat WS] Private hint:', data.message);
+                setMessages(prev => [...prev, data]);
+              } catch (e) {
+                console.error('[Chat WS] Failed to parse private hint:', e);
+              }
+            }
+          );
+        }
       },
 
       onStompError: (frame) => {
@@ -71,9 +100,6 @@ export function useChatSocket(roomCode, playerId) {
         playerId,
         username: localStorage.getItem('username') || 'Player',
         guess: text.trim(),
-        // Send the round start time, NOT Date.now().
-        // Backend calculates: secsElapsed = (server_now - this_timestamp) / 1000
-        // So secsElapsed = time since round started = proper score decay
         timestamp: drawStartedAt || Date.now(),
       }),
     });

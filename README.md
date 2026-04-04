@@ -8,6 +8,8 @@ Java 21 · Spring Boot 3.5 · React 19 · Kafka · Redis · WebSocket
 
 [Architecture](#architecture) · [How It Works](#how-it-works) · [Quick Start](#quick-start) · [Observability](#observability) · [Load Testing](#load-testing)
 
+▶️ [**Watch Demo Video**](https://drive.google.com/file/d/1T3MsEo3LxXi6Gzky-4QpUbwg6AkAsaOq/view)
+
 </div>
 
 ---
@@ -27,9 +29,9 @@ Java 21 · Spring Boot 3.5 · React 19 · Kafka · Redis · WebSocket
 | Service | Port | Responsibility | Data Store |
 |---------|------|---------------|------------|
 | **API Gateway** | 8765 | JWT auth, rate limiting (100 req/min), CORS, routing | Redis (tokens) |
-| **User Service** | 8084 | Registration, login, JWT signing | PostgreSQL |
+| **User Service** | 8084 | Registration, login, JWT signing, WS ticket issuance | PostgreSQL, Redis |
 | **Game Service** | 8082 | State machine (WAITING → CHOOSING → DRAWING → RESULTS → GAME_OVER), round timer | MongoDB, Redis |
-| **Drawing Service** | 8081 | Stroke ingestion via WebSocket, canvas replay | Redis, Kafka |
+| **Drawing Service** | 8081 | Stroke ingestion via WebSocket, canvas replay, Redis Pub/Sub fan-out | Redis |
 | **Chat Service** | 8080 | Guess validation (Levenshtein distance), "close guess" detection | Redis, Kafka |
 | **Word Service** | 8085 | Word bank, progressive hints every 15s | PostgreSQL, Kafka |
 | **Score Service** | 8083 | Time-decay scoring (100 pts − 1/sec), Redis sorted set leaderboard | PostgreSQL, Redis |
@@ -49,23 +51,25 @@ Java 21 · Spring Boot 3.5 · React 19 · Kafka · Redis · WebSocket
 
 ## How It Works
 
-### Drawing Pipeline — Drawer to Guessers in <1ms
+### Drawing Pipeline — Drawer to Guessers in <0.2ms
 
 ```
 Drawer's browser
-  │ WebSocket (STOMP)
+  │ WebSocket (STOMP + ticket auth)
   ▼
 Drawing Service ─── /app/room.{code}.stroke
   │
-  ├─→ Redis (RPUSH canvas:{code})        ← stroke persisted for late-join replay
+  ├─→ Redis LIST (RPUSH canvas:{code})   ← stroke persisted for late-join replay
   │
-  └─→ Kafka topic: draw-events           ← fan-out to all instances
+  └─→ Redis Pub/Sub (draw:{code})        ← fire-and-forget fan-out
         │
         ▼
-  Drawing Service (consumer)
+  StrokeBroadcastListener (pattern: draw:*)
         │
         └─→ /topic/room.{code}.canvas    ← broadcast to all subscribed guessers
 ```
+
+> **Why Redis Pub/Sub instead of Kafka for strokes?** Strokes are ephemeral — already persisted in Redis lists for replay. Kafka's durability (disk writes, consumer groups, offset tracking) is redundant overhead. Redis Pub/Sub delivers in-memory with sub-millisecond latency, perfectly matching the fire-and-forget nature of real-time drawing data. Kafka is still used for durable events (`game-events`, `chat-events`) where at-least-once delivery matters.
 
 ### Guess Validation Flow
 
@@ -106,13 +110,27 @@ Game Service fetches words via **OpenFeign → Word Service** wrapped with Resil
 
 If Word Service goes down, the circuit opens after 5 failures and a **fallback word pool** kicks in — the game continues uninterrupted. When Word Service recovers, the circuit moves to half-open, tests 3 calls, and closes.
 
-### Kafka Topics
+### Event Channels
 
-| Topic | Producer → Consumer(s) | Purpose |
-|-------|------------------------|---------|
-| `game-events` | Game Service → Chat, Drawing, Score, Word | State transitions: ROUND_STARTED, DRAWING_STARTED, ROUND_ENDED, GAME_OVER, HINT |
-| `draw-events` | Drawing Service → Drawing Service (fan-out) | Stroke broadcast to all connected clients |
-| `chat-events` | Chat Service → Score Service | Correct guess events with elapsed time for scoring |
+| Channel | Type | Producer → Consumer(s) | Purpose |
+|---------|------|------------------------|---------|
+| `game-events` | Kafka | Game Service → Chat, Drawing, Score, Word | Durable state transitions: ROUND_STARTED, DRAWING_STARTED, ROUND_ENDED, GAME_OVER, HINT |
+| `chat-events` | Kafka | Chat Service → Score Service | Durable correct guess events with elapsed time for scoring |
+| `draw:{roomCode}` | Redis Pub/Sub | Drawing Service → Drawing Service | Ephemeral stroke fan-out (sub-ms latency, fire-and-forget) |
+
+### WebSocket Authentication
+
+Browsers cannot send `Authorization` headers during WebSocket upgrade. Instead of whitelisting WS endpoints, we use **ticket-based auth**:
+
+```
+1. Client → POST /user/auth/ws-ticket (JWT required, validated by gateway)
+2. user-service generates UUID ticket → Redis (ws-ticket:{uuid}, TTL 30s)
+3. Client → ws://host/ws/websocket?ticket={uuid}
+4. Drawing/Chat service HandshakeInterceptor validates + deletes ticket
+5. Connection established with authenticated userId in session
+```
+
+Tickets are one-time-use and expire in 30 seconds — a compromised ticket cannot be replayed.
 
 ---
 
@@ -226,10 +244,10 @@ k6 run load-tests/stroke-load-test.js 2>&1 | tee docs/k6-results.txt
 Doodle-Sync/
 ├── api-gateway/             Spring Cloud Gateway + JWT filter + rate limiter
 ├── discovery-server/        Eureka service registry
-├── user-service/            Auth (register/login) + JWT + PostgreSQL
+├── user-service/            Auth (register/login) + JWT + WS tickets + PostgreSQL + Redis
 ├── game-service/            Game state machine + round timer + MongoDB
-├── drawing-service/         WebSocket strokes + Redis replay + Kafka fan-out
-├── chat-service/            WebSocket guesses + Levenshtein validator
+├── drawing-service/         WebSocket strokes + Redis Pub/Sub fan-out + ticket auth
+├── chat-service/            WebSocket guesses + Levenshtein validator + ticket auth
 ├── word-service/            Word bank + progressive hints
 ├── score-service/           Time-decay scoring + Redis leaderboard
 ├── client/                  React 19 + Vite + STOMP WebSocket
@@ -250,9 +268,10 @@ Doodle-Sync/
 
 | Decision | Why |
 |----------|-----|
-| **Direct WebSocket** (bypass gateway) | Browsers can't attach JWT headers during WebSocket upgrade; drawing/chat services handle auth independently |
-| **Kafka fan-out** for strokes | One stroke from the drawer reaches N guessers without N direct connections or O(N²) relay |
-| **Redis for ephemeral state** | Canvas strokes, current word, guess dedup, leaderboard — all expire with TTL, no schema needed |
+| **Ticket-based WS auth** | Browsers can't send JWT headers during WebSocket upgrade — a one-time Redis ticket (30s TTL) acts as a short-lived proxy for the JWT, consumed on first handshake |
+| **Redis Pub/Sub** for strokes (not Kafka) | Strokes are ephemeral and already persisted in Redis lists. Kafka's disk persistence, consumer groups, and offset tracking add latency and complexity with zero benefit for fire-and-forget data |
+| **Kafka** for game/chat events | State transitions (`ROUND_STARTED`, `GAME_OVER`) and scoring events (`CORRECT_GUESS`) need at-least-once delivery guarantees — Kafka's durability is essential here |
+| **Redis for ephemeral state** | Canvas strokes, current word, guess dedup, WS tickets, leaderboard — all expire with TTL, no schema needed |
 | **MongoDB for game sessions** | Flexible schema for dynamic player lists, nested state, and room config |
 | **PostgreSQL for structured data** | Users, words, scores — relational integrity with Flyway migrations |
 | **Levenshtein distance for "close" guesses** | Single-letter typos ("elefant" → "elephant") shouldn't be punished in a fast-paced game |

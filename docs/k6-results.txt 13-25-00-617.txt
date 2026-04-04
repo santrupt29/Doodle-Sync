@@ -1,0 +1,55 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: load-tests/stroke-load-test.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 8 max VUs, 1m30s max duration (incl. graceful stop):
+              * default: 8 looping VUs for 1m0s (gracefulStop: 30s)
+
+time="2026-03-31T13:22:41+05:30" level=info msg="Registration skipped (Status 403). Trying Login..." source=console
+time="2026-03-31T13:22:41+05:30" level=error msg="Room Creation Failed: 400 - {\"timestamp\":\"2026-03-31T07:52:41.589+00:00\",\"status\":400,\"error\":\"Bad Request\",\"path\":\"/game/room\"}" source=console
+
+
+  █ THRESHOLDS 
+
+    http_req_failed
+    ✗ 'rate < 0.01' rate=66.66%
+
+    stroke_latency_ms
+    ✓ 'p(99) < 200' p(99)=0
+
+    ws_connect_errors
+    ✓ 'count < 3' count=0
+
+
+  █ TOTAL RESULTS 
+
+    CUSTOM
+    stroke_latency_ms..............: avg=0        min=0        med=0        max=0        p(90)=0        p(95)=0       
+
+    HTTP
+    http_req_duration..............: avg=162.26ms min=33.4ms   med=133.03ms max=320.36ms p(90)=282.89ms p(95)=301.62ms
+      { expected_response:true }...: avg=320.36ms min=320.36ms med=320.36ms max=320.36ms p(90)=320.36ms p(95)=320.36ms
+    http_req_failed................: 66.66% 2 out of 3
+    http_reqs......................: 3      6.073059/s
+
+    NETWORK
+    data_received..................: 2.0 kB 4.0 kB/s
+    data_sent......................: 896 B  1.8 kB/s
+
+    WEBSOCKET
+    ws_connect_errors..............: 0      0/s
+
+
+
+
+Run       [ 100% ] setup()
+default   [   0% ]
+time="2026-03-31T13:22:41+05:30" level=error msg="Error: Could not create room\n\tat setup (file:///Users/santruptsmac/IdeaProjects/Doodle-Sync/load-tests/stroke-load-test.js:80:11(176))\n" hint="script exception"

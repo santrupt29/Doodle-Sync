@@ -23,4 +23,13 @@ api.interceptors.response.use(
   }
 );
 
+/**
+ * Fetch a one-time WebSocket auth ticket from user-service (via gateway).
+ * The ticket is valid for 30 seconds and consumed on first use.
+ */
+export async function fetchWsTicket() {
+  const { data } = await api.post('/user/auth/ws-ticket');
+  return data.ticket;
+}
+
 export default api;

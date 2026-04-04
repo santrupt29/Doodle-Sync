@@ -1,6 +1,9 @@
 spring:
   datasource:
     url: jdbc:postgresql://postgres:5432/scribble_users   # ← postgres is the docker service name
+  data:
+    redis:
+      host: scribble-redis
 
 management:
   zipkin:

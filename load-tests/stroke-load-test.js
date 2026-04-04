@@ -80,7 +80,19 @@ export default function (data) {
   const { roomCode, token } = data;
   const vuId = __VU;
 
-  const url = 'ws://localhost:8081/ws/websocket';
+  // Fetch a one-time WS auth ticket before connecting
+  const ticketRes = http.post('http://localhost:8765/user/auth/ws-ticket', null, {
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+
+  if (ticketRes.status !== 200) {
+    console.error(`Ticket fetch failed: ${ticketRes.status} — ${ticketRes.body}`);
+    wsConnectErrors.add(1);
+    return;
+  }
+
+  const ticket = ticketRes.json('ticket');
+  const url = `ws://localhost:8081/ws/websocket?ticket=${ticket}`;
 
   const res = ws.connect(url, {}, function (socket) {
 

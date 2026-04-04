@@ -1,5 +1,7 @@
 package com.pm.drawingservice.config;
 
+import com.pm.drawingservice.interceptor.WsTicketInterceptor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
@@ -8,7 +10,10 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 
 @Configuration
 @EnableWebSocketMessageBroker
+@RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+
+    private final WsTicketInterceptor wsTicketInterceptor;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry messageBrokerRegistry) {
@@ -24,6 +29,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
             StompEndpointRegistry registry) {
 
         registry.addEndpoint("/ws")
+                .addInterceptors(wsTicketInterceptor)
                 .setAllowedOriginPatterns("*")
                 .withSockJS();                 // fallback
     }
